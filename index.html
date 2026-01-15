@@ -1,0 +1,1165 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>구구단 트레저 헌터 🏴‍☠️</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Confetti.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+  
+  <style>
+    /* 커스텀 애니메이션 */
+    @keyframes correctFlash {
+      0%, 100% { background-color: transparent; }
+      50% { background-color: rgba(74, 222, 128, 0.3); }
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      10%, 30%, 50%, 70%, 90% { transform: translateX(-10px); }
+      20%, 40%, 60%, 80% { transform: translateX(10px); }
+    }
+
+    @keyframes keyBounce {
+      0%, 100% { transform: scale(1) rotate(0deg); }
+      25% { transform: scale(1.2) rotate(10deg); }
+      50% { transform: scale(1.3) rotate(-10deg); }
+      75% { transform: scale(1.2) rotate(10deg); }
+    }
+
+    @keyframes fadeInScale {
+      0% { opacity: 0; transform: scale(0.5); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+
+    .correct-flash {
+      animation: correctFlash 0.5s ease-in-out;
+    }
+
+    .shake {
+      animation: shake 0.5s ease-in-out;
+    }
+
+    .key-bounce {
+      animation: keyBounce 0.6s ease-in-out;
+    }
+
+    .fade-in-scale {
+      animation: fadeInScale 0.3s ease-out;
+    }
+
+    .pulse-animation {
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    .timer-bar {
+      transition: width 0.05s linear;
+    }
+
+    /* 둥근 폰트 스타일 */
+    body {
+      font-family: 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+
+    /* 버튼 터치 효과 (모바일 최적화) */
+    .game-button {
+      transition: all 0.15s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .game-button:active {
+      transform: scale(0.95);
+    }
+
+    /* 모달 배경 */
+    .modal-backdrop {
+      background-color: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(4px);
+    }
+
+    /* 타이머 바 색상 변화 */
+    .timer-danger {
+      background-color: #f87171 !important;
+    }
+
+    .timer-warning {
+      background-color: #fbbf24 !important;
+    }
+
+    .timer-safe {
+      background-color: #4ade80 !important;
+    }
+
+    /* 화면 전환 */
+    .screen {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100vh;
+      overflow-y: auto;
+      z-index: 1;
+      opacity: 0;
+      transition: opacity 0.3s ease-in-out;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .screen.active {
+      display: block;
+      opacity: 1;
+    }
+
+    /* 쿠폰 카드 스타일 */
+    .coupon-card {
+      transition: all 0.2s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-blue-200 via-purple-200 to-pink-200 min-h-screen">
+  
+  <!-- ========== 메인 화면 (홈) ========== -->
+  <div id="homeScreen" class="screen active min-h-screen flex items-center justify-center px-4 py-6">
+    <div class="w-full max-w-md">
+      <!-- 타이틀 -->
+      <div class="text-center mb-6">
+        <h1 class="text-4xl font-bold text-purple-600 mb-3 pulse-animation">
+          🏴‍☠️ 구구단<br>트레저 헌터
+        </h1>
+        <p class="text-lg text-gray-700">문제를 풀고 보물을 모으세요!</p>
+      </div>
+
+      <!-- 현황 카드 -->
+      <div class="grid grid-cols-3 gap-3 mb-6">
+        <!-- 점수 카드 -->
+        <div class="bg-white rounded-xl shadow-lg p-4 text-center">
+          <div class="text-4xl mb-1">📊</div>
+          <div class="text-xs text-gray-600 mb-1">점수</div>
+          <div class="text-2xl font-bold text-blue-600" id="homeScoreDisplay">0</div>
+          <div class="text-[10px] text-gray-500 mt-1">→🔑 <span id="scoreToKey">700</span></div>
+        </div>
+
+        <!-- 열쇠 카드 -->
+        <div class="bg-white rounded-xl shadow-lg p-4 text-center">
+          <div class="text-4xl mb-1">🔑</div>
+          <div class="text-xs text-gray-600 mb-1">열쇠</div>
+          <div class="text-2xl font-bold text-yellow-600" id="homeKeyDisplay">0</div>
+          <div class="text-[10px] text-gray-500 mt-1">700점마다</div>
+        </div>
+
+        <!-- 쿠폰 카드 -->
+        <div class="bg-white rounded-xl shadow-lg p-4 text-center cursor-pointer active:scale-95 transition-all" onclick="showCouponsScreen()">
+          <div class="text-4xl mb-1">🎫</div>
+          <div class="text-xs text-gray-600 mb-1">쿠폰</div>
+          <div class="text-2xl font-bold text-pink-600" id="homeCouponDisplay">0</div>
+          <div class="text-[10px] text-gray-500 mt-1">탭하여 확인</div>
+        </div>
+      </div>
+
+      <!-- 버튼 그룹 -->
+      <div class="flex flex-col gap-3 mb-6">
+        <button 
+          onclick="startGameFromHome()" 
+          class="bg-gradient-to-r from-green-400 to-blue-500 active:from-green-600 active:to-blue-700 text-white text-2xl font-bold py-5 rounded-2xl shadow-xl active:scale-95 transition-all">
+          게임 시작 🚀
+        </button>
+        
+        <button 
+          onclick="showTreasureScreen()" 
+          class="bg-gradient-to-r from-yellow-400 to-orange-400 active:from-yellow-600 active:to-orange-600 text-white text-xl font-bold py-4 rounded-2xl shadow-xl active:scale-95 transition-all">
+          보물상자 열기 🎁
+        </button>
+      </div>
+
+      <!-- 게임 설명 -->
+      <div class="bg-white/90 rounded-xl shadow-lg p-4">
+        <h3 class="text-lg font-bold text-purple-600 mb-3 text-center">게임 방법</h3>
+        <ul class="space-y-2 text-sm text-gray-700">
+          <li>⏱️ 5초 안에 구구단 문제를 푸세요</li>
+          <li>⚡ 빨리 풀수록 높은 점수</li>
+          <li>🔑 700점 달성 시 열쇠 획득</li>
+          <li>🎁 열쇠로 보물상자를 여세요</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 게임 화면 ========== -->
+  <div id="gameScreen" class="screen">
+    <!-- Game Header -->
+    <header class="bg-gradient-to-r from-purple-500 to-pink-500 text-white p-3 shadow-lg">
+      <div class="flex justify-between items-center">
+        <button 
+          onclick="goToHome()" 
+          class="bg-white/20 active:bg-white/40 px-3 py-2 rounded-lg text-sm font-bold transition-all active:scale-95">
+          ← 홈
+        </button>
+        <div class="flex items-center gap-3">
+          <div class="text-center">
+            <div class="text-[10px] opacity-90">점수</div>
+            <div class="text-lg font-bold" id="gameScoreDisplay">0</div>
+          </div>
+          <div class="text-center">
+            <div class="text-[10px] opacity-90">열쇠</div>
+            <div class="text-lg font-bold" id="gameKeyDisplay">0 🔑</div>
+          </div>
+        </div>
+        <button 
+          onclick="togglePause()" 
+          id="pauseBtn"
+          class="bg-yellow-400 active:bg-yellow-600 text-purple-900 font-bold px-3 py-2 rounded-lg text-sm shadow-lg transition-all active:scale-95">
+          ⏸️
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Game Section -->
+    <main class="px-4 py-6 min-h-screen flex flex-col justify-center">
+      <!-- Timer Bar -->
+      <div class="w-full bg-gray-300 rounded-full h-3 mb-6 overflow-hidden shadow-inner">
+        <div id="timerBar" class="timer-bar timer-safe h-full rounded-full" style="width: 100%;"></div>
+      </div>
+
+      <!-- Question Display -->
+      <div id="gameArea" class="text-center mb-6">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 mb-6">
+          <div id="questionText" class="text-5xl font-bold text-gray-800 mb-3">
+            준비 중...
+          </div>
+          <div id="feedbackText" class="text-xl font-bold min-h-[1.5rem]"></div>
+        </div>
+
+        <!-- Answer Buttons -->
+        <div id="answerButtons" class="grid grid-cols-3 gap-3">
+          <!-- Buttons will be generated dynamically -->
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ========== 보물상자 화면 ========== -->
+  <div id="treasureScreen" class="screen min-h-screen">
+    <header class="bg-gradient-to-r from-yellow-500 to-orange-500 text-white p-3 shadow-lg">
+      <div class="flex justify-between items-center">
+        <button 
+          onclick="goToHome()" 
+          class="bg-white/20 active:bg-white/40 px-3 py-2 rounded-lg text-sm font-bold transition-all active:scale-95">
+          ← 홈
+        </button>
+        <h1 class="text-xl font-bold">🎁 보물상자</h1>
+        <div class="text-center">
+          <div class="text-[10px] opacity-90">열쇠</div>
+          <div class="text-lg font-bold" id="treasureKeyDisplay">0 🔑</div>
+        </div>
+      </div>
+    </header>
+
+    <main class="px-4 py-6 flex items-center justify-center min-h-[calc(100vh-60px)]">
+      <div class="w-full max-w-md">
+        <!-- 보물상자 상태 -->
+        <div id="treasureBoxContainer" class="text-center">
+          <div class="bg-white rounded-2xl shadow-2xl p-8 mb-4">
+            <div class="text-7xl mb-4">🎁</div>
+            <h2 class="text-2xl font-bold text-purple-600 mb-3">보물상자를<br>열어보세요!</h2>
+            <p class="text-base text-gray-600 mb-6">열쇠 1개로 랜덤 쿠폰 획득</p>
+            <button 
+              onclick="openTreasureBox()" 
+              id="openBoxBtn"
+              class="w-full bg-gradient-to-r from-yellow-400 to-orange-400 active:from-yellow-600 active:to-orange-600 text-white text-xl font-bold py-5 rounded-xl shadow-xl transition-all active:scale-95">
+              상자 열기! 🔑
+            </button>
+          </div>
+        </div>
+
+        <!-- 쿠폰 결과 -->
+        <div id="couponResultContainer" class="hidden">
+          <div class="bg-white rounded-2xl shadow-2xl p-6 fade-in-scale">
+            <div class="text-6xl mb-3 text-center">🎉</div>
+            <h3 class="text-xl font-bold text-purple-600 mb-3 text-center">축하합니다!</h3>
+            <div class="bg-gradient-to-r from-pink-100 to-purple-100 rounded-xl p-5 mb-5">
+              <p class="text-gray-700 mb-2 text-center text-sm">당첨된 쿠폰:</p>
+              <div id="newCouponText" class="text-3xl font-bold text-pink-600 text-center mb-2">
+                <!-- 쿠폰 내용 -->
+              </div>
+            </div>
+            <div class="flex gap-3">
+              <button 
+                onclick="resetTreasureBox()" 
+                class="flex-1 bg-gradient-to-r from-green-400 to-blue-500 active:from-green-600 active:to-blue-700 text-white text-base font-bold py-4 rounded-xl shadow-lg transition-all active:scale-95">
+                한번 더! 🎁
+              </button>
+              <button 
+                onclick="goToHome()" 
+                class="flex-1 bg-gray-300 active:bg-gray-500 text-gray-800 text-base font-bold py-4 rounded-xl transition-all active:scale-95">
+                홈으로
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ========== 쿠폰 목록 화면 ========== -->
+  <div id="couponsScreen" class="screen min-h-screen">
+    <header class="bg-gradient-to-r from-pink-500 to-purple-500 text-white p-3 shadow-lg">
+      <div class="flex justify-between items-center">
+        <button 
+          onclick="goToHome()" 
+          class="bg-white/20 active:bg-white/40 px-3 py-2 rounded-lg text-sm font-bold transition-all active:scale-95">
+          ← 홈
+        </button>
+        <h1 class="text-xl font-bold">🎫 내 쿠폰함</h1>
+        <div class="text-center">
+          <div class="text-[10px] opacity-90">보유</div>
+          <div class="text-lg font-bold" id="couponScreenDisplay">0</div>
+        </div>
+      </div>
+    </header>
+
+    <main class="px-4 py-4 min-h-[calc(100vh-60px)] overflow-y-auto">
+      <div id="couponsList" class="max-w-md mx-auto">
+        <!-- 쿠폰 목록이 여기 표시됩니다 -->
+      </div>
+
+      <!-- 쿠폰이 없을 때 -->
+      <div id="noCouponsMessage" class="text-center py-12 hidden">
+        <div class="text-7xl mb-4">📭</div>
+        <h2 class="text-2xl font-bold text-gray-600 mb-3">아직 쿠폰이 없어요</h2>
+        <p class="text-base text-gray-500 mb-6">보물상자를 열어 쿠폰을 받아보세요!</p>
+        <button 
+          onclick="showTreasureScreen()" 
+          class="bg-gradient-to-r from-yellow-400 to-orange-400 active:from-yellow-600 active:to-orange-600 text-white text-lg font-bold py-4 px-8 rounded-xl shadow-lg transition-all active:scale-95">
+          보물상자 열러가기 🎁
+        </button>
+      </div>
+    </main>
+  </div>
+
+  <!-- ========== 일시정지 모달 ========== -->
+  <div id="pauseModal" class="fixed inset-0 modal-backdrop hidden items-center justify-center z-50 px-4">
+    <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4 fade-in-scale" onclick="event.stopPropagation()">
+      <h2 class="text-3xl font-bold text-purple-600 mb-4 text-center">⏸️ 일시정지</h2>
+      <p class="text-lg text-gray-700 text-center mb-6">게임이 일시정지되었습니다</p>
+      <div class="flex flex-col gap-3">
+        <button 
+          onclick="togglePause()" 
+          class="bg-gradient-to-r from-green-400 to-blue-500 active:from-green-600 active:to-blue-700 text-white text-lg font-bold py-4 rounded-xl shadow-lg transition-all active:scale-95">
+          ▶️ 계속하기
+        </button>
+        <button 
+          onclick="goToHomeFromPause()" 
+          class="bg-gray-300 active:bg-gray-500 text-gray-800 text-base font-bold py-3 rounded-xl transition-all active:scale-95">
+          홈으로 나가기
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 열쇠 획득 알림 ========== -->
+  <div id="keyNotification" class="fixed top-16 right-4 bg-yellow-400 text-purple-900 font-bold py-3 px-5 rounded-xl shadow-lg hidden key-bounce z-50">
+    <div class="text-lg">🔑 황금 열쇠 획득!</div>
+    <div class="text-xs">점수가 초기화됩니다</div>
+  </div>
+
+  <!-- ========== 쿠폰 상세 모달 ========== -->
+  <div id="couponDetailModal" class="fixed inset-0 modal-backdrop hidden items-center justify-center z-50 px-4" onclick="closeCouponDetail(event)">
+    <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full fade-in-scale" onclick="event.stopPropagation()">
+      <!-- 쿠폰 이미지/내용 -->
+      <div class="text-center mb-6">
+        <div class="text-8xl mb-4" id="couponDetailIcon">🎁</div>
+        <div class="bg-gradient-to-br from-pink-100 to-purple-100 rounded-xl p-6 mb-4">
+          <div class="text-3xl font-bold text-purple-600 mb-2" id="couponDetailReward">
+            <!-- 쿠폰 내용 -->
+          </div>
+          <div class="text-sm text-gray-600" id="couponDetailDate">
+            <!-- 날짜 -->
+          </div>
+        </div>
+        <div class="text-base text-gray-700 mb-4" id="couponDetailStatus">
+          <!-- 사용 여부 -->
+        </div>
+      </div>
+
+      <!-- 버튼 -->
+      <div class="flex flex-col gap-3">
+        <button 
+          id="useCouponBtn"
+          onclick="useCouponFromDetail()"
+          class="w-full bg-gradient-to-r from-green-400 to-blue-500 active:from-green-600 active:to-blue-700 text-white text-lg font-bold py-4 rounded-xl shadow-lg transition-all active:scale-95">
+          사용 완료 표시
+        </button>
+        <button 
+          id="deleteCouponBtn"
+          onclick="deleteCouponFromDetail()"
+          class="w-full bg-red-400 active:bg-red-600 text-white text-base font-bold py-3 rounded-xl transition-all active:scale-95">
+          쿠폰 삭제
+        </button>
+        <button 
+          onclick="closeCouponDetailModal()"
+          class="w-full bg-gray-300 active:bg-gray-500 text-gray-800 text-base font-bold py-3 rounded-xl transition-all active:scale-95">
+          닫기
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * ======================================
+     * 부모님을 위한 설정 가이드
+     * ======================================
+     * 
+     * 1. 보상 목록 수정하기:
+     *    아래 REWARDS 배열의 내용을 자유롭게 수정하세요.
+     *    이모지를 추가하거나 변경할 수 있습니다.
+     * 
+     * 2. 난이도 조절:
+     *    - TIMER_DURATION: 문제당 제한 시간 (기본: 5초)
+     *    - KEY_REWARD_THRESHOLD: 열쇠를 받는 점수 기준 (기본: 700점)
+     *    - generateQuestion() 함수에서 2~9를 다른 숫자로 변경하면 구구단 범위를 조절할 수 있습니다
+     * 
+     * 3. 데이터 초기화:
+     *    브라우저 개발자 도구(F12) > Application > Local Storage에서
+     *    'multiplicationGame' 항목을 삭제하면 점수와 열쇠가 초기화됩니다.
+     *    또는 아래 resetGame() 함수를 콘솔에서 실행하세요.
+     */
+
+    // ========== 게임 설정 (수정 가능) ==========
+    const REWARDS = [
+      "아이스크림 🍦",
+      "유튜브 30분 📺",
+      "용돈 1000원 💰",
+      "칭찬 스티커 ⭐",
+      "간식 선택권 🍪",
+      "게임 30분 🎮",
+      "책 한 권 📚",
+      "영화 보기 🎬",
+      "늦잠 쿠폰 😴",
+      "숙제 면제권 📝"
+    ];
+
+    const TIMER_DURATION = 5; // 5초
+    const KEY_REWARD_THRESHOLD = 700; // 700점마다 열쇠 1개
+    // ==========================================
+
+    // 게임 상태
+    let gameState = {
+      score: 0,
+      keys: 0,
+      coupons: [], // 획득한 쿠폰 목록
+      currentQuestion: null,
+      timerStart: null,
+      timerInterval: null,
+      isAnswered: false,
+      isPaused: false,
+      pausedTimeRemaining: 0,
+      audioContext: null
+    };
+
+    // 페이지 로드 시 초기화
+    window.addEventListener('DOMContentLoaded', () => {
+      loadGame();
+      updateAllUI();
+      showScreen('homeScreen');
+    });
+
+    // ========== 화면 전환 ==========
+    function showScreen(screenId) {
+      // 모든 화면 숨기기
+      document.querySelectorAll('.screen').forEach(screen => {
+        screen.classList.remove('active');
+      });
+      
+      // 선택한 화면 보이기
+      document.getElementById(screenId).classList.add('active');
+      
+      // 화면별 업데이트
+      if (screenId === 'homeScreen') {
+        updateAllUI();
+      } else if (screenId === 'treasureScreen') {
+        resetTreasureBox();
+        updateAllUI();
+      } else if (screenId === 'couponsScreen') {
+        updateCouponsDisplay();
+      }
+    }
+
+    function goToHome() {
+      // 게임 중이면 타이머 정리
+      if (gameState.timerInterval) {
+        clearInterval(gameState.timerInterval);
+        gameState.timerInterval = null;
+      }
+      gameState.isPaused = false;
+      showScreen('homeScreen');
+    }
+
+    function goToHomeFromPause() {
+      togglePause(); // 일시정지 해제
+      goToHome(); // 홈으로
+    }
+
+    function startGameFromHome() {
+      showScreen('gameScreen');
+      nextQuestion();
+    }
+
+    function showTreasureScreen() {
+      showScreen('treasureScreen');
+    }
+
+    function showCouponsScreen() {
+      showScreen('couponsScreen');
+    }
+
+    // ========== localStorage 관리 ==========
+    function saveGame() {
+      localStorage.setItem('multiplicationGame', JSON.stringify({
+        score: gameState.score,
+        keys: gameState.keys,
+        coupons: gameState.coupons
+      }));
+    }
+
+    function loadGame() {
+      const saved = localStorage.getItem('multiplicationGame');
+      if (saved) {
+        try {
+          const data = JSON.parse(saved);
+          gameState.score = data.score || 0;
+          gameState.keys = data.keys || 0;
+          gameState.coupons = data.coupons || [];
+        } catch (e) {
+          console.error('저장된 데이터를 불러오는데 실패했습니다:', e);
+        }
+      }
+    }
+
+    function resetGame() {
+      if (confirm('모든 점수와 열쇠가 초기화됩니다. 계속하시겠습니까?')) {
+        localStorage.removeItem('multiplicationGame');
+        gameState.score = 0;
+        gameState.keys = 0;
+        gameState.coupons = [];
+        updateAllUI();
+        alert('게임이 초기화되었습니다!');
+      }
+    }
+
+    // ========== UI 업데이트 ==========
+    function updateAllUI() {
+      // 점수 업데이트
+      document.getElementById('homeScoreDisplay').textContent = gameState.score;
+      if (document.getElementById('gameScoreDisplay')) {
+        document.getElementById('gameScoreDisplay').textContent = gameState.score;
+      }
+      
+      // 열쇠 업데이트
+      document.getElementById('homeKeyDisplay').textContent = gameState.keys;
+      if (document.getElementById('gameKeyDisplay')) {
+        document.getElementById('gameKeyDisplay').textContent = `${gameState.keys} 🔑`;
+      }
+      if (document.getElementById('treasureKeyDisplay')) {
+        document.getElementById('treasureKeyDisplay').textContent = `${gameState.keys} 🔑`;
+      }
+      
+      // 쿠폰 개수 업데이트
+      document.getElementById('homeCouponDisplay').textContent = gameState.coupons.length;
+      if (document.getElementById('couponScreenDisplay')) {
+        document.getElementById('couponScreenDisplay').textContent = gameState.coupons.length;
+      }
+      
+      // 다음 열쇠까지 남은 점수
+      const scoreToKey = KEY_REWARD_THRESHOLD - (gameState.score % KEY_REWARD_THRESHOLD);
+      document.getElementById('scoreToKey').textContent = scoreToKey;
+      
+      // 보물상자 버튼 활성화/비활성화
+      updateTreasureButton();
+    }
+
+    function updateTreasureButton() {
+      const openBtn = document.getElementById('openBoxBtn');
+      if (!openBtn) return;
+      
+      if (gameState.keys < 1) {
+        openBtn.disabled = true;
+        openBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        openBtn.textContent = '열쇠가 필요해요 🔒';
+      } else {
+        openBtn.disabled = false;
+        openBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        openBtn.textContent = '상자 열기! 🔑';
+      }
+    }
+
+    // ========== 문제 생성 ==========
+    function generateQuestion() {
+      // 2~9단 범위 (수정 가능)
+      const num1 = Math.floor(Math.random() * 8) + 2;
+      const num2 = Math.floor(Math.random() * 8) + 2;
+      const answer = num1 * num2;
+      
+      // 오답 생성
+      const distractors = generateDistractors(answer);
+      
+      // 정답과 오답을 섞기
+      const options = shuffleArray([answer, ...distractors]);
+      
+      return { num1, num2, answer, options };
+    }
+
+    function generateDistractors(correctAnswer) {
+      const distractors = new Set();
+      const offsets = [-10, -5, -2, -1, 1, 2, 5, 10];
+      
+      // 정답과 비슷한 오답 5개 생성
+      let attempts = 0;
+      while (distractors.size < 5 && attempts < 50) {
+        const offset = offsets[Math.floor(Math.random() * offsets.length)];
+        const distractor = correctAnswer + offset;
+        
+        // 양수이고 정답이 아닌 경우만 추가
+        if (distractor > 0 && distractor !== correctAnswer && distractor <= 81) {
+          distractors.add(distractor);
+        }
+        attempts++;
+      }
+      
+      // 5개가 안 채워지면 랜덤 숫자로 채우기
+      while (distractors.size < 5) {
+        const random = Math.floor(Math.random() * 81) + 1;
+        if (random !== correctAnswer) {
+          distractors.add(random);
+        }
+      }
+      
+      return Array.from(distractors).slice(0, 5);
+    }
+
+    function shuffleArray(array) {
+      const shuffled = [...array];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      return shuffled;
+    }
+
+    // ========== 문제 표시 ==========
+    function nextQuestion() {
+      // 일시정지 상태면 무시
+      if (gameState.isPaused) return;
+      
+      // 이전 타이머 정리
+      if (gameState.timerInterval) {
+        clearInterval(gameState.timerInterval);
+      }
+      
+      // 새 문제 생성
+      gameState.currentQuestion = generateQuestion();
+      gameState.isAnswered = false;
+      
+      // UI 업데이트
+      const { num1, num2, options } = gameState.currentQuestion;
+      document.getElementById('questionText').textContent = `${num1} × ${num2} = ?`;
+      document.getElementById('feedbackText').textContent = '';
+      
+      // 답안 버튼 생성
+      const buttonsContainer = document.getElementById('answerButtons');
+      buttonsContainer.innerHTML = '';
+      
+      options.forEach(option => {
+        const button = document.createElement('button');
+        button.textContent = option;
+        button.className = 'game-button bg-gradient-to-r from-blue-400 to-purple-400 active:from-blue-600 active:to-purple-600 text-white text-3xl font-bold py-6 rounded-xl shadow-lg active:scale-95 transition-all';
+        button.onclick = () => checkAnswer(option);
+        buttonsContainer.appendChild(button);
+      });
+      
+      // 타이머 시작
+      startTimer();
+    }
+
+    // ========== 일시정지 ==========
+    function togglePause() {
+      gameState.isPaused = !gameState.isPaused;
+      
+      const modal = document.getElementById('pauseModal');
+      const pauseBtn = document.getElementById('pauseBtn');
+      
+      if (gameState.isPaused) {
+        // 일시정지
+        if (gameState.timerInterval) {
+          clearInterval(gameState.timerInterval);
+        }
+        // 남은 시간 저장
+        const elapsed = (Date.now() - gameState.timerStart) / 1000;
+        gameState.pausedTimeRemaining = Math.max(0, TIMER_DURATION - elapsed);
+        
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        pauseBtn.textContent = '▶️ 재개';
+      } else {
+        // 재개
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        pauseBtn.textContent = '⏸️ 일시정지';
+        
+        // 타이머 재개
+        if (gameState.pausedTimeRemaining > 0) {
+          resumeTimer();
+        }
+      }
+    }
+
+    function resumeTimer() {
+      // 남은 시간으로 타이머 재설정
+      const adjustedDuration = gameState.pausedTimeRemaining;
+      gameState.timerStart = Date.now() - (TIMER_DURATION - adjustedDuration) * 1000;
+      
+      gameState.timerInterval = setInterval(() => {
+        const elapsed = (Date.now() - gameState.timerStart) / 1000;
+        
+        if (elapsed >= TIMER_DURATION) {
+          handleTimeout();
+        } else {
+          updateTimerBar();
+        }
+      }, 50);
+    }
+
+    // ========== 타이머 ==========
+    function startTimer() {
+      gameState.timerStart = Date.now();
+      updateTimerBar();
+      
+      gameState.timerInterval = setInterval(() => {
+        if (gameState.isPaused) return;
+        
+        const elapsed = (Date.now() - gameState.timerStart) / 1000;
+        
+        if (elapsed >= TIMER_DURATION) {
+          handleTimeout();
+        } else {
+          updateTimerBar();
+        }
+      }, 50);
+    }
+
+    function updateTimerBar() {
+      const elapsed = (Date.now() - gameState.timerStart) / 1000;
+      const remaining = Math.max(0, TIMER_DURATION - elapsed);
+      const percentage = (remaining / TIMER_DURATION) * 100;
+      
+      const timerBar = document.getElementById('timerBar');
+      timerBar.style.width = `${percentage}%`;
+      
+      // 색상 변경
+      timerBar.classList.remove('timer-safe', 'timer-warning', 'timer-danger');
+      if (remaining <= 1) {
+        timerBar.classList.add('timer-danger');
+      } else if (remaining <= 2) {
+        timerBar.classList.add('timer-warning');
+      } else {
+        timerBar.classList.add('timer-safe');
+      }
+    }
+
+    function handleTimeout() {
+      if (gameState.isAnswered) return;
+      
+      clearInterval(gameState.timerInterval);
+      gameState.isAnswered = true;
+      
+      // 오답 처리
+      showFeedback(false, 0);
+      playSound(200, 0.3);
+      
+      // 화면 흔들기
+      document.getElementById('gameArea').classList.add('shake');
+      setTimeout(() => {
+        document.getElementById('gameArea').classList.remove('shake');
+      }, 500);
+      
+      // 다음 문제로 (약간의 딜레이)
+      setTimeout(nextQuestion, 1000);
+    }
+
+    // ========== 답안 체크 ==========
+    function checkAnswer(selectedAnswer) {
+      if (gameState.isAnswered || gameState.isPaused) return;
+      
+      clearInterval(gameState.timerInterval);
+      gameState.isAnswered = true;
+      
+      const { answer } = gameState.currentQuestion;
+      const isCorrect = selectedAnswer === answer;
+      
+      const elapsed = (Date.now() - gameState.timerStart) / 1000;
+      const earnedScore = isCorrect ? calculateScore(elapsed) : 0;
+      
+      if (isCorrect) {
+        // 정답 처리
+        const oldScore = gameState.score;
+        gameState.score += earnedScore;
+        
+        showFeedback(true, earnedScore);
+        playSound(800, 0.2);
+        
+        // 화면 플래시
+        document.getElementById('gameArea').classList.add('correct-flash');
+        setTimeout(() => {
+          document.getElementById('gameArea').classList.remove('correct-flash');
+        }, 500);
+        
+        // 열쇠 획득 체크
+        checkKeyReward(oldScore, gameState.score);
+        
+        saveGame();
+        updateAllUI();
+        
+        // 즉시 다음 문제로 (딜레이 없음)
+        setTimeout(nextQuestion, 500);
+      } else {
+        // 오답 처리
+        showFeedback(false, 0);
+        playSound(200, 0.3);
+        
+        // 화면 흔들기
+        document.getElementById('gameArea').classList.add('shake');
+        setTimeout(() => {
+          document.getElementById('gameArea').classList.remove('shake');
+        }, 500);
+        
+        // 오답 시에만 약간의 딜레이
+        setTimeout(nextQuestion, 1000);
+      }
+    }
+
+    function calculateScore(elapsedTime) {
+      if (elapsedTime <= 1) return 100; // Perfect!
+      if (elapsedTime <= 2) return 70;  // Great
+      if (elapsedTime <= 3) return 50;  // Good   
+      if (elapsedTime <= 4) return 30;  // Bad
+      if (elapsedTime <= 5) return 10;  // Worst
+      return 0;
+    }
+
+    function showFeedback(isCorrect, score) {
+      const feedbackEl = document.getElementById('feedbackText');
+      
+      if (isCorrect) {
+        let message = '';
+        if (score === 100) {
+          message = '🌟 Perfect! +100점';
+          feedbackEl.className = 'text-xl font-bold min-h-[1.5rem] text-green-500';
+        } else if (score === 70) {
+          message = '✨ Great! +70점';
+          feedbackEl.className = 'text-xl font-bold min-h-[1.5rem] text-blue-500';
+        } else if (score === 50) {
+          message = '👍 Good! +50점';
+          feedbackEl.className = 'text-xl font-bold min-h-[1.5rem] text-purple-500';
+        } else if (score === 30) {
+          message = '😅 Bad! +30점';
+          feedbackEl.className = 'text-xl font-bold min-h-[1.5rem] text-orange-500';
+        } else if (score === 10) {
+          message = '😰 Worst! +10점';
+          feedbackEl.className = 'text-xl font-bold min-h-[1.5rem] text-red-400';
+        }
+        feedbackEl.textContent = message;
+      } else {
+        feedbackEl.textContent = '❌ 틀렸어요!';
+        feedbackEl.className = 'text-xl font-bold min-h-[1.5rem] text-red-500';
+      }
+    }
+
+    function checkKeyReward(oldScore, newScore) {
+      const oldKeys = Math.floor(oldScore / KEY_REWARD_THRESHOLD);
+      const newKeys = Math.floor(newScore / KEY_REWARD_THRESHOLD);
+      
+      if (newKeys > oldKeys) {
+        const keysEarned = newKeys - oldKeys;
+        gameState.keys += keysEarned;
+        
+        // 점수 초기화 (열쇠 획득 시)
+        gameState.score = newScore % KEY_REWARD_THRESHOLD;
+        
+        showKeyRewardAnimation();
+        saveGame();
+        updateAllUI();
+      }
+    }
+
+    function showKeyRewardAnimation() {
+      const notification = document.getElementById('keyNotification');
+      notification.classList.remove('hidden');
+      notification.classList.add('key-bounce');
+      
+      // 폭죽 효과
+      confetti({
+        particleCount: 50,
+        spread: 60,
+        origin: { x: 0.9, y: 0.2 }
+      });
+      
+      setTimeout(() => {
+        notification.classList.add('hidden');
+        notification.classList.remove('key-bounce');
+      }, 2500);
+    }
+
+    // ========== 보물상자 시스템 ==========
+    function resetTreasureBox() {
+      document.getElementById('treasureBoxContainer').classList.remove('hidden');
+      document.getElementById('couponResultContainer').classList.add('hidden');
+      updateTreasureButton();
+    }
+
+    function openTreasureBox() {
+      if (gameState.keys < 1) {
+        alert('열쇠가 부족합니다! 1000점을 모아 열쇠를 획득하세요.');
+        return;
+      }
+      
+      gameState.keys--;
+      const reward = REWARDS[Math.floor(Math.random() * REWARDS.length)];
+      
+      // 쿠폰에 추가 (타임스탬프 포함)
+      const coupon = {
+        id: Date.now(),
+        reward: reward,
+        date: new Date().toLocaleDateString('ko-KR'),
+        used: false
+      };
+      gameState.coupons.push(coupon);
+      
+      // 폭죽 효과
+      confetti({
+        particleCount: 150,
+        spread: 100,
+        origin: { y: 0.6 }
+      });
+      
+      setTimeout(() => {
+        confetti({
+          particleCount: 100,
+          angle: 60,
+          spread: 70,
+          origin: { x: 0 }
+        });
+      }, 200);
+      
+      setTimeout(() => {
+        confetti({
+          particleCount: 100,
+          angle: 120,
+          spread: 70,
+          origin: { x: 1 }
+        });
+      }, 400);
+      
+      // 결과 표시
+      setTimeout(() => {
+        document.getElementById('treasureBoxContainer').classList.add('hidden');
+        document.getElementById('couponResultContainer').classList.remove('hidden');
+        document.getElementById('newCouponText').textContent = reward;
+        playSound(1000, 0.3);
+      }, 600);
+      
+      saveGame();
+      updateAllUI();
+    }
+
+    // ========== 쿠폰 목록 ==========
+    function updateCouponsDisplay() {
+      const couponsList = document.getElementById('couponsList');
+      const noCouponsMsg = document.getElementById('noCouponsMessage');
+      
+      if (gameState.coupons.length === 0) {
+        couponsList.innerHTML = '';
+        noCouponsMsg.classList.remove('hidden');
+        return;
+      }
+      
+      noCouponsMsg.classList.add('hidden');
+      
+      // 쿠폰 카드 생성 (최신순)
+      const couponsHTML = gameState.coupons
+        .slice()
+        .reverse()
+        .map((coupon, index) => `
+          <div 
+            class="coupon-card bg-gradient-to-br from-pink-50 to-purple-50 rounded-xl shadow-lg p-4 mb-3 cursor-pointer active:scale-95 transition-all ${coupon.used ? 'opacity-60' : ''}"
+            onclick="showCouponDetail(${coupon.id})">
+            <div class="flex justify-between items-start mb-2">
+              <div class="text-3xl">${coupon.used ? '🎫' : '🎁'}</div>
+              <div class="text-xs text-gray-500">${coupon.date}</div>
+            </div>
+            <div class="text-xl font-bold text-purple-600 mb-2">
+              ${coupon.reward}
+            </div>
+            <div class="text-sm ${coupon.used ? 'text-gray-500' : 'text-blue-600'}">
+              ${coupon.used ? '✓ 사용 완료' : '탭하여 상세보기 →'}
+            </div>
+          </div>
+        `).join('');
+      
+      couponsList.innerHTML = couponsHTML;
+      updateAllUI();
+    }
+
+    let currentCouponId = null;
+
+    function showCouponDetail(couponId) {
+      const coupon = gameState.coupons.find(c => c.id === couponId);
+      if (!coupon) return;
+      
+      currentCouponId = couponId;
+      
+      // 모달 내용 설정
+      document.getElementById('couponDetailIcon').textContent = coupon.used ? '🎫' : '🎁';
+      document.getElementById('couponDetailReward').textContent = coupon.reward;
+      document.getElementById('couponDetailDate').textContent = `획득일: ${coupon.date}`;
+      document.getElementById('couponDetailStatus').textContent = coupon.used ? '이미 사용된 쿠폰입니다' : '사용 가능한 쿠폰입니다';
+      
+      // 버튼 상태 설정
+      const useBtn = document.getElementById('useCouponBtn');
+      if (coupon.used) {
+        useBtn.disabled = true;
+        useBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        useBtn.textContent = '이미 사용 완료';
+      } else {
+        useBtn.disabled = false;
+        useBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        useBtn.textContent = '사용 완료 표시';
+      }
+      
+      // 모달 표시
+      document.getElementById('couponDetailModal').classList.remove('hidden');
+      document.getElementById('couponDetailModal').classList.add('flex');
+    }
+
+    function closeCouponDetailModal() {
+      document.getElementById('couponDetailModal').classList.add('hidden');
+      document.getElementById('couponDetailModal').classList.remove('flex');
+      currentCouponId = null;
+    }
+
+    function closeCouponDetail(event) {
+      if (event.target === event.currentTarget) {
+        closeCouponDetailModal();
+      }
+    }
+
+    function useCouponFromDetail() {
+      if (!currentCouponId) return;
+      
+      const coupon = gameState.coupons.find(c => c.id === currentCouponId);
+      if (coupon && !coupon.used) {
+        coupon.used = true;
+        saveGame();
+        
+        // 축하 폭죽
+        confetti({
+          particleCount: 80,
+          spread: 60,
+          origin: { y: 0.6 }
+        });
+        
+        playSound(900, 0.2);
+        
+        // 모달 닫고 목록 업데이트
+        closeCouponDetailModal();
+        updateCouponsDisplay();
+      }
+    }
+
+    function deleteCouponFromDetail() {
+      if (!currentCouponId) return;
+      
+      if (confirm('이 쿠폰을 삭제하시겠습니까?')) {
+        gameState.coupons = gameState.coupons.filter(c => c.id !== currentCouponId);
+        saveGame();
+        closeCouponDetailModal();
+        updateCouponsDisplay();
+      }
+    }
+
+    function useCoupon(couponId) {
+      const coupon = gameState.coupons.find(c => c.id === couponId);
+      if (coupon) {
+        coupon.used = true;
+        saveGame();
+        updateCouponsDisplay();
+        
+        // 축하 폭죽
+        confetti({
+          particleCount: 80,
+          spread: 60,
+          origin: { y: 0.6 }
+        });
+        
+        playSound(900, 0.2);
+      }
+    }
+
+    function deleteCoupon(couponId) {
+      if (confirm('이 쿠폰을 삭제하시겠습니까?')) {
+        gameState.coupons = gameState.coupons.filter(c => c.id !== couponId);
+        saveGame();
+        updateCouponsDisplay();
+      }
+    }
+
+    // ========== 사운드 효과 ==========
+    function playSound(frequency, duration) {
+      try {
+        if (!gameState.audioContext) {
+          gameState.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        
+        const oscillator = gameState.audioContext.createOscillator();
+        const gainNode = gameState.audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(gameState.audioContext.destination);
+        
+        oscillator.type = 'sine';
+        oscillator.frequency.value = frequency;
+        
+        gainNode.gain.setValueAtTime(0.3, gameState.audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, gameState.audioContext.currentTime + duration);
+        
+        oscillator.start(gameState.audioContext.currentTime);
+        oscillator.stop(gameState.audioContext.currentTime + duration);
+      } catch (e) {
+        // 사운드 재생 실패 시 무시
+        console.warn('사운드 재생 실패:', e);
+      }
+    }
+
+    // ========== 키보드 단축키 (개발/테스트용) ==========
+    window.addEventListener('keydown', (e) => {
+      // Ctrl+Shift+R: 게임 초기화
+      if (e.ctrlKey && e.shiftKey && e.key === 'R') {
+        e.preventDefault();
+        resetGame();
+      }
+    });
+  </script>
+</body>
+</html>
+
