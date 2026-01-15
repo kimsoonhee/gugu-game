@@ -189,6 +189,7 @@
         <ul class="space-y-2 text-sm text-gray-700">
           <li>⏱️ 5초 안에 구구단 문제를 푸세요</li>
           <li>🎯 12문제를 풀면 1라운드 완료</li>
+          <li>⏸️ 일시정지는 라운드당 2번만 가능</li>
           <li>🔑 700점 이상 달성 시 열쇠 획득</li>
           <li>❌ 700점 미만 시 점수 초기화</li>
           <li>🎁 열쇠로 보물상자를 여세요</li>
@@ -221,7 +222,7 @@
           onclick="togglePause()" 
           id="pauseBtn"
           class="bg-yellow-400 active:bg-yellow-600 text-purple-900 font-bold px-3 py-2 rounded-lg text-sm shadow-lg transition-all active:scale-95">
-          ⏸️
+          ⏸️ 2
         </button>
       </div>
     </header>
@@ -363,7 +364,11 @@
   <div id="pauseModal" class="fixed inset-0 modal-backdrop hidden items-center justify-center z-50 px-4">
     <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4 fade-in-scale" onclick="event.stopPropagation()">
       <h2 class="text-3xl font-bold text-purple-600 mb-4 text-center">⏸️ 일시정지</h2>
-      <p class="text-lg text-gray-700 text-center mb-6">게임이 일시정지되었습니다</p>
+      <p class="text-lg text-gray-700 text-center mb-2">게임이 일시정지되었습니다</p>
+      <div class="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-3 mb-4">
+        <p class="text-sm text-orange-600 text-center font-bold mb-1">⚠️ 재개하면 새로운 문제가 나옵니다</p>
+        <p class="text-xs text-gray-600 text-center">남은 일시정지: <span id="pauseRemainingCount" class="font-bold text-blue-600">1</span>회</p>
+      </div>
       <div class="flex flex-col gap-3">
         <button 
           onclick="togglePause()" 
@@ -509,7 +514,9 @@
       currentRound: 0, // 현재 라운드 문제 번호 (1-12)
       totalRounds: 12, // 한 라운드당 총 문제 수
       roundScore: 0, // 이번 라운드에서 획득한 점수
-      totalRoundsPlayed: 0 // 총 도전한 라운드 수
+      totalRoundsPlayed: 0, // 총 도전한 라운드 수
+      pauseCount: 0, // 현재 라운드에서 사용한 일시정지 횟수
+      maxPauseCount: 2 // 라운드당 최대 일시정지 횟수
     };
 
     // 페이지 로드 시 초기화
@@ -560,6 +567,12 @@
       goToHome(); // 홈으로
     }
 
+    function goToHomeFromResult() {
+      document.getElementById('roundResultModal').classList.add('hidden');
+      document.getElementById('roundResultModal').classList.remove('flex');
+      goToHome();
+    }
+
     function startGameFromHome() {
       showScreen('gameScreen');
       startNewRound();
@@ -570,12 +583,14 @@
       gameState.currentRound = 0;
       gameState.roundScore = 0;
       gameState.isPaused = false;
+      gameState.pauseCount = 0; // 일시정지 횟수 초기화
       
       // 결과 모달 닫기
       document.getElementById('roundResultModal').classList.add('hidden');
       document.getElementById('roundResultModal').classList.remove('flex');
       
       updateRoundUI();
+      updatePauseButton();
       nextQuestion();
     }
 
@@ -770,6 +785,12 @@
 
     // ========== 일시정지 ==========
     function togglePause() {
+      // 일시정지 횟수 체크
+      if (!gameState.isPaused && gameState.pauseCount >= gameState.maxPauseCount) {
+        alert('일시정지 횟수를 모두 사용했습니다!');
+        return;
+      }
+      
       gameState.isPaused = !gameState.isPaused;
       
       const modal = document.getElementById('pauseModal');
@@ -777,27 +798,75 @@
       
       if (gameState.isPaused) {
         // 일시정지
+        gameState.pauseCount++; // 횟수 증가
+        
         if (gameState.timerInterval) {
           clearInterval(gameState.timerInterval);
         }
-        // 남은 시간 저장
-        const elapsed = (Date.now() - gameState.timerStart) / 1000;
-        gameState.pausedTimeRemaining = Math.max(0, TIMER_DURATION - elapsed);
+        
+        // 남은 횟수 표시 업데이트
+        updatePauseModalInfo();
         
         modal.classList.remove('hidden');
         modal.classList.add('flex');
-        pauseBtn.textContent = '▶️ 재개';
+        updatePauseButton();
       } else {
-        // 재개
+        // 재개 - 새로운 문제로 변경 (부정행위 방지)
         modal.classList.add('hidden');
         modal.classList.remove('flex');
-        pauseBtn.textContent = '⏸️ 일시정지';
         
-        // 타이머 재개
-        if (gameState.pausedTimeRemaining > 0) {
-          resumeTimer();
-        }
+        // 새로운 문제 생성 (라운드 번호는 유지)
+        generateNewQuestion();
+        updatePauseButton();
       }
+    }
+
+    function updatePauseButton() {
+      const pauseBtn = document.getElementById('pauseBtn');
+      if (!pauseBtn) return;
+      
+      const remaining = gameState.maxPauseCount - gameState.pauseCount;
+      
+      if (remaining <= 0) {
+        pauseBtn.disabled = true;
+        pauseBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        pauseBtn.textContent = '⏸️ 0';
+      } else {
+        pauseBtn.disabled = false;
+        pauseBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        pauseBtn.textContent = `⏸️ ${remaining}`;
+      }
+    }
+
+    function updatePauseModalInfo() {
+      const remaining = gameState.maxPauseCount - gameState.pauseCount;
+      document.getElementById('pauseRemainingCount').textContent = remaining;
+    }
+
+    function generateNewQuestion() {
+      // 새 문제 생성
+      gameState.currentQuestion = generateQuestion();
+      gameState.isAnswered = false;
+      
+      // UI 업데이트
+      const { num1, num2, options } = gameState.currentQuestion;
+      document.getElementById('questionText').textContent = `${num1} × ${num2} = ?`;
+      document.getElementById('feedbackText').textContent = '';
+      
+      // 답안 버튼 생성
+      const buttonsContainer = document.getElementById('answerButtons');
+      buttonsContainer.innerHTML = '';
+      
+      options.forEach(option => {
+        const button = document.createElement('button');
+        button.textContent = option;
+        button.className = 'game-button bg-gradient-to-r from-blue-400 to-purple-400 active:from-blue-600 active:to-purple-600 text-white text-3xl font-bold py-6 rounded-xl shadow-lg active:scale-95 transition-all';
+        button.onclick = () => checkAnswer(option);
+        buttonsContainer.appendChild(button);
+      });
+      
+      // 타이머 새로 시작 (5초 풀타임)
+      startTimer();
     }
 
     function resumeTimer() {
@@ -1001,8 +1070,8 @@
     function calculateScore(elapsedTime) {
       if (elapsedTime <= 1) return 100; // Perfect!
       if (elapsedTime <= 2) return 70;  // Great
-      if (elapsedTime <= 3) return 50;  // Good   
-      if (elapsedTime <= 4) return 30;  // Bad
+      if (elapsedTime <= 3) return 40;  // Good   
+      if (elapsedTime <= 4) return 20;  // Bad
       if (elapsedTime <= 5) return 10;  // Worst
       return 0;
     }
@@ -1276,4 +1345,3 @@
   </script>
 </body>
 </html>
-
