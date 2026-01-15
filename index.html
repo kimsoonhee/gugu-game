@@ -143,12 +143,12 @@
 
       <!-- 현황 카드 -->
       <div class="grid grid-cols-3 gap-3 mb-6">
-        <!-- 점수 카드 -->
+        <!-- 도전 횟수 카드 -->
         <div class="bg-white rounded-xl shadow-lg p-4 text-center">
-          <div class="text-4xl mb-1">📊</div>
-          <div class="text-xs text-gray-600 mb-1">점수</div>
-          <div class="text-2xl font-bold text-blue-600" id="homeScoreDisplay">0</div>
-          <div class="text-[10px] text-gray-500 mt-1">→🔑 <span id="scoreToKey">700</span></div>
+          <div class="text-4xl mb-1">🎯</div>
+          <div class="text-xs text-gray-600 mb-1">도전</div>
+          <div class="text-2xl font-bold text-blue-600" id="homeRoundsDisplay">0</div>
+          <div class="text-[10px] text-gray-500 mt-1">라운드</div>
         </div>
 
         <!-- 열쇠 카드 -->
@@ -156,7 +156,7 @@
           <div class="text-4xl mb-1">🔑</div>
           <div class="text-xs text-gray-600 mb-1">열쇠</div>
           <div class="text-2xl font-bold text-yellow-600" id="homeKeyDisplay">0</div>
-          <div class="text-[10px] text-gray-500 mt-1">700점마다</div>
+          <div class="text-[10px] text-gray-500 mt-1">700점 달성</div>
         </div>
 
         <!-- 쿠폰 카드 -->
@@ -188,8 +188,9 @@
         <h3 class="text-lg font-bold text-purple-600 mb-3 text-center">게임 방법</h3>
         <ul class="space-y-2 text-sm text-gray-700">
           <li>⏱️ 5초 안에 구구단 문제를 푸세요</li>
-          <li>⚡ 빨리 풀수록 높은 점수</li>
-          <li>🔑 700점 달성 시 열쇠 획득</li>
+          <li>🎯 12문제를 풀면 1라운드 완료</li>
+          <li>🔑 700점 이상 달성 시 열쇠 획득</li>
+          <li>❌ 700점 미만 시 점수 초기화</li>
           <li>🎁 열쇠로 보물상자를 여세요</li>
         </ul>
       </div>
@@ -227,6 +228,16 @@
 
     <!-- Main Game Section -->
     <main class="px-4 py-6 min-h-screen flex flex-col justify-center">
+      <!-- Round Progress -->
+      <div class="text-center mb-4">
+        <div class="text-2xl font-bold text-purple-600">
+          문제 <span id="currentRound">1</span> / <span id="totalRounds">12</span>
+        </div>
+        <div class="text-sm text-gray-600 mt-1">
+          라운드 점수: <span id="roundScore" class="font-bold text-blue-600">0</span>점
+        </div>
+      </div>
+
       <!-- Timer Bar -->
       <div class="w-full bg-gray-300 rounded-full h-3 mb-6 overflow-hidden shadow-inner">
         <div id="timerBar" class="timer-bar timer-safe h-full rounded-full" style="width: 100%;"></div>
@@ -374,6 +385,34 @@
     <div class="text-xs">점수가 초기화됩니다</div>
   </div>
 
+  <!-- ========== 라운드 결과 모달 ========== -->
+  <div id="roundResultModal" class="fixed inset-0 modal-backdrop hidden items-center justify-center z-50 px-4">
+    <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full fade-in-scale" onclick="event.stopPropagation()">
+      <div class="text-center">
+        <div id="resultIcon" class="text-8xl mb-4">🎉</div>
+        <h2 id="resultTitle" class="text-3xl font-bold text-purple-600 mb-4">성공!</h2>
+        <div class="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-6 mb-6">
+          <div class="text-sm text-gray-600 mb-2">라운드 점수</div>
+          <div id="finalRoundScore" class="text-4xl font-bold text-blue-600 mb-3">0점</div>
+          <div id="resultMessage" class="text-base text-gray-700">
+            <!-- 결과 메시지 -->
+          </div>
+        </div>
+        <button 
+          onclick="startNewRound()" 
+          id="continueBtn"
+          class="w-full bg-gradient-to-r from-green-400 to-blue-500 active:from-green-600 active:to-blue-700 text-white text-lg font-bold py-4 rounded-xl shadow-lg transition-all active:scale-95 mb-3">
+          다시 도전하기 🚀
+        </button>
+        <button 
+          onclick="goToHomeFromResult()" 
+          class="w-full bg-gray-300 active:bg-gray-500 text-gray-800 text-base font-bold py-3 rounded-xl transition-all active:scale-95">
+          홈으로
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- ========== 쿠폰 상세 모달 ========== -->
   <div id="couponDetailModal" class="fixed inset-0 modal-backdrop hidden items-center justify-center z-50 px-4" onclick="closeCouponDetail(event)">
     <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full fade-in-scale" onclick="event.stopPropagation()">
@@ -466,7 +505,11 @@
       isAnswered: false,
       isPaused: false,
       pausedTimeRemaining: 0,
-      audioContext: null
+      audioContext: null,
+      currentRound: 0, // 현재 라운드 문제 번호 (1-12)
+      totalRounds: 12, // 한 라운드당 총 문제 수
+      roundScore: 0, // 이번 라운드에서 획득한 점수
+      totalRoundsPlayed: 0 // 총 도전한 라운드 수
     };
 
     // 페이지 로드 시 초기화
@@ -504,6 +547,11 @@
         gameState.timerInterval = null;
       }
       gameState.isPaused = false;
+      
+      // 라운드 진행 중이었다면 라운드 점수 버리기
+      gameState.currentRound = 0;
+      gameState.roundScore = 0;
+      
       showScreen('homeScreen');
     }
 
@@ -514,6 +562,20 @@
 
     function startGameFromHome() {
       showScreen('gameScreen');
+      startNewRound();
+    }
+
+    function startNewRound() {
+      // 라운드 초기화
+      gameState.currentRound = 0;
+      gameState.roundScore = 0;
+      gameState.isPaused = false;
+      
+      // 결과 모달 닫기
+      document.getElementById('roundResultModal').classList.add('hidden');
+      document.getElementById('roundResultModal').classList.remove('flex');
+      
+      updateRoundUI();
       nextQuestion();
     }
 
@@ -530,7 +592,8 @@
       localStorage.setItem('multiplicationGame', JSON.stringify({
         score: gameState.score,
         keys: gameState.keys,
-        coupons: gameState.coupons
+        coupons: gameState.coupons,
+        totalRoundsPlayed: gameState.totalRoundsPlayed
       }));
     }
 
@@ -542,6 +605,7 @@
           gameState.score = data.score || 0;
           gameState.keys = data.keys || 0;
           gameState.coupons = data.coupons || [];
+          gameState.totalRoundsPlayed = data.totalRoundsPlayed || 0;
         } catch (e) {
           console.error('저장된 데이터를 불러오는데 실패했습니다:', e);
         }
@@ -554,6 +618,7 @@
         gameState.score = 0;
         gameState.keys = 0;
         gameState.coupons = [];
+        gameState.totalRoundsPlayed = 0;
         updateAllUI();
         alert('게임이 초기화되었습니다!');
       }
@@ -561,11 +626,8 @@
 
     // ========== UI 업데이트 ==========
     function updateAllUI() {
-      // 점수 업데이트
-      document.getElementById('homeScoreDisplay').textContent = gameState.score;
-      if (document.getElementById('gameScoreDisplay')) {
-        document.getElementById('gameScoreDisplay').textContent = gameState.score;
-      }
+      // 도전 횟수 업데이트
+      document.getElementById('homeRoundsDisplay').textContent = gameState.totalRoundsPlayed;
       
       // 열쇠 업데이트
       document.getElementById('homeKeyDisplay').textContent = gameState.keys;
@@ -582,12 +644,14 @@
         document.getElementById('couponScreenDisplay').textContent = gameState.coupons.length;
       }
       
-      // 다음 열쇠까지 남은 점수
-      const scoreToKey = KEY_REWARD_THRESHOLD - (gameState.score % KEY_REWARD_THRESHOLD);
-      document.getElementById('scoreToKey').textContent = scoreToKey;
-      
       // 보물상자 버튼 활성화/비활성화
       updateTreasureButton();
+    }
+
+    function updateRoundUI() {
+      document.getElementById('currentRound').textContent = gameState.currentRound;
+      document.getElementById('totalRounds').textContent = gameState.totalRounds;
+      document.getElementById('roundScore').textContent = gameState.roundScore;
     }
 
     function updateTreasureButton() {
@@ -662,6 +726,17 @@
     function nextQuestion() {
       // 일시정지 상태면 무시
       if (gameState.isPaused) return;
+      
+      // 라운드 증가
+      gameState.currentRound++;
+      
+      // 12문제를 모두 풀었는지 체크 (증가 후 체크)
+      if (gameState.currentRound > gameState.totalRounds) {
+        endRound();
+        return;
+      }
+      
+      updateRoundUI();
       
       // 이전 타이머 정리
       if (gameState.timerInterval) {
@@ -798,6 +873,85 @@
       setTimeout(nextQuestion, 1000);
     }
 
+    // ========== 라운드 종료 ==========
+    function endRound() {
+      // 타이머 정리
+      if (gameState.timerInterval) {
+        clearInterval(gameState.timerInterval);
+      }
+      
+      const totalScore = gameState.roundScore;
+      const oldScore = gameState.score;
+      
+      // 도전 횟수 증가
+      gameState.totalRoundsPlayed++;
+      
+      // 700점 이상이면 열쇠 획득 + 누적 점수에 추가
+      if (totalScore >= KEY_REWARD_THRESHOLD) {
+        gameState.keys++;
+        gameState.score += totalScore;
+        
+        // 성공 결과 표시
+        document.getElementById('resultIcon').textContent = '🎉';
+        document.getElementById('resultTitle').textContent = '성공!';
+        document.getElementById('resultTitle').className = 'text-3xl font-bold text-green-600 mb-4';
+        document.getElementById('finalRoundScore').textContent = `${totalScore}점`;
+        document.getElementById('resultMessage').innerHTML = `
+          <div class="text-green-600 font-bold text-lg mb-2">🔑 황금 열쇠 획득!</div>
+          <div class="text-gray-600">축하합니다! 700점 이상 달성하여<br>열쇠를 획득했습니다!</div>
+        `;
+        
+        // 폭죽 효과
+        confetti({
+          particleCount: 150,
+          spread: 100,
+          origin: { y: 0.6 }
+        });
+        
+        setTimeout(() => {
+          confetti({
+            particleCount: 100,
+            angle: 60,
+            spread: 70,
+            origin: { x: 0 }
+          });
+        }, 200);
+        
+        playSound(1000, 0.5);
+        
+      } else {
+        // 실패 - 점수 초기화
+        gameState.score = 0;
+        
+        // 실패 결과 표시
+        document.getElementById('resultIcon').textContent = '😢';
+        document.getElementById('resultTitle').textContent = '아쉬워요!';
+        document.getElementById('resultTitle').className = 'text-3xl font-bold text-orange-600 mb-4';
+        document.getElementById('finalRoundScore').textContent = `${totalScore}점`;
+        document.getElementById('resultMessage').innerHTML = `
+          <div class="text-orange-600 font-bold text-lg mb-2">목표 미달성</div>
+          <div class="text-gray-600">700점 이상 필요합니다.<br>점수가 초기화되었습니다.<br>다시 도전해보세요!</div>
+        `;
+        
+        playSound(300, 0.3);
+      }
+      
+      saveGame();
+      updateAllUI();
+      
+      // 결과 모달 표시
+      setTimeout(() => {
+        document.getElementById('roundResultModal').classList.remove('hidden');
+        document.getElementById('roundResultModal').classList.add('flex');
+      }, 800);
+    }
+
+    function goToHomeFromResult() {
+      document.getElementById('roundResultModal').classList.add('hidden');
+      document.getElementById('roundResultModal').classList.remove('flex');
+      goToHome();
+    }
+
     // ========== 답안 체크 ==========
     function checkAnswer(selectedAnswer) {
       if (gameState.isAnswered || gameState.isPaused) return;
@@ -812,9 +966,8 @@
       const earnedScore = isCorrect ? calculateScore(elapsed) : 0;
       
       if (isCorrect) {
-        // 정답 처리
-        const oldScore = gameState.score;
-        gameState.score += earnedScore;
+        // 정답 처리 - 라운드 점수에만 추가
+        gameState.roundScore += earnedScore;
         
         showFeedback(true, earnedScore);
         playSound(800, 0.2);
@@ -825,11 +978,7 @@
           document.getElementById('gameArea').classList.remove('correct-flash');
         }, 500);
         
-        // 열쇠 획득 체크
-        checkKeyReward(oldScore, gameState.score);
-        
-        saveGame();
-        updateAllUI();
+        updateRoundUI();
         
         // 즉시 다음 문제로 (딜레이 없음)
         setTimeout(nextQuestion, 500);
@@ -884,41 +1033,6 @@
         feedbackEl.textContent = '❌ 틀렸어요!';
         feedbackEl.className = 'text-xl font-bold min-h-[1.5rem] text-red-500';
       }
-    }
-
-    function checkKeyReward(oldScore, newScore) {
-      const oldKeys = Math.floor(oldScore / KEY_REWARD_THRESHOLD);
-      const newKeys = Math.floor(newScore / KEY_REWARD_THRESHOLD);
-      
-      if (newKeys > oldKeys) {
-        const keysEarned = newKeys - oldKeys;
-        gameState.keys += keysEarned;
-        
-        // 점수 초기화 (열쇠 획득 시)
-        gameState.score = newScore % KEY_REWARD_THRESHOLD;
-        
-        showKeyRewardAnimation();
-        saveGame();
-        updateAllUI();
-      }
-    }
-
-    function showKeyRewardAnimation() {
-      const notification = document.getElementById('keyNotification');
-      notification.classList.remove('hidden');
-      notification.classList.add('key-bounce');
-      
-      // 폭죽 효과
-      confetti({
-        particleCount: 50,
-        spread: 60,
-        origin: { x: 0.9, y: 0.2 }
-      });
-      
-      setTimeout(() => {
-        notification.classList.add('hidden');
-        notification.classList.remove('key-bounce');
-      }, 2500);
     }
 
     // ========== 보물상자 시스템 ==========
