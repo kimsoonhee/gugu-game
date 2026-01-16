@@ -342,20 +342,39 @@
     </header>
 
     <main class="px-4 py-4 min-h-[calc(100vh-60px)] overflow-y-auto">
-      <div id="couponsList" class="max-w-md mx-auto">
-        <!-- 쿠폰 목록이 여기 표시됩니다 -->
-      </div>
+      <div class="max-w-md mx-auto">
+        <!-- 탭 메뉴 -->
+        <div class="flex gap-2 mb-4">
+          <button 
+            id="tabAvailable"
+            onclick="switchCouponTab('available')"
+            class="flex-1 py-3 rounded-lg font-bold transition-all active:scale-95 bg-gradient-to-r from-green-400 to-blue-500 text-white shadow-lg">
+            사용 가능 (<span id="availableCount">0</span>)
+          </button>
+          <button 
+            id="tabUsed"
+            onclick="switchCouponTab('used')"
+            class="flex-1 py-3 rounded-lg font-bold transition-all active:scale-95 bg-gray-300 text-gray-700">
+            사용 완료 (<span id="usedCount">0</span>)
+          </button>
+        </div>
 
-      <!-- 쿠폰이 없을 때 -->
-      <div id="noCouponsMessage" class="text-center py-12 hidden">
-        <div class="text-7xl mb-4">📭</div>
-        <h2 class="text-2xl font-bold text-gray-600 mb-3">아직 쿠폰이 없어요</h2>
-        <p class="text-base text-gray-500 mb-6">보물상자를 열어 쿠폰을 받아보세요!</p>
-        <button 
-          onclick="showTreasureScreen()" 
-          class="bg-gradient-to-r from-yellow-400 to-orange-400 active:from-yellow-600 active:to-orange-600 text-white text-lg font-bold py-4 px-8 rounded-xl shadow-lg transition-all active:scale-95">
-          보물상자 열러가기 🎁
-        </button>
+        <!-- 쿠폰 목록 -->
+        <div id="couponsList">
+          <!-- 쿠폰 목록이 여기 표시됩니다 -->
+        </div>
+
+        <!-- 쿠폰이 없을 때 -->
+        <div id="noCouponsMessage" class="text-center py-12 hidden">
+          <div class="text-7xl mb-4">📭</div>
+          <h2 class="text-2xl font-bold text-gray-600 mb-3">쿠폰이 없어요</h2>
+          <p class="text-base text-gray-500 mb-6" id="noCouponsText">보물상자를 열어 쿠폰을 받아보세요!</p>
+          <button 
+            onclick="showTreasureScreen()" 
+            class="bg-gradient-to-r from-yellow-400 to-orange-400 active:from-yellow-600 active:to-orange-600 text-white text-lg font-bold py-4 px-8 rounded-xl shadow-lg transition-all active:scale-95">
+            보물상자 열러가기 🎁
+          </button>
+        </div>
       </div>
     </main>
   </div>
@@ -524,7 +543,8 @@
       roundScore: 0, // 이번 라운드에서 획득한 점수
       totalRoundsPlayed: 0, // 총 도전한 라운드 수
       pauseCount: 0, // 현재 라운드에서 사용한 일시정지 횟수
-      maxPauseCount: 2 // 라운드당 최대 일시정지 횟수
+      maxPauseCount: 2, // 라운드당 최대 일시정지 횟수
+      currentCouponTab: 'available' // 현재 쿠폰 탭 (available / used)
     };
 
     // 페이지 로드 시 초기화
@@ -607,6 +627,7 @@
     }
 
     function showCouponsScreen() {
+      gameState.currentCouponTab = 'available'; // 기본 탭을 사용 가능으로 설정
       showScreen('couponsScreen');
     }
 
@@ -1175,20 +1196,63 @@
     }
 
     // ========== 쿠폰 목록 ==========
+    function switchCouponTab(tab) {
+      gameState.currentCouponTab = tab;
+      
+      // 탭 버튼 스타일 업데이트
+      const tabAvailable = document.getElementById('tabAvailable');
+      const tabUsed = document.getElementById('tabUsed');
+      
+      if (tab === 'available') {
+        tabAvailable.className = 'flex-1 py-3 rounded-lg font-bold transition-all active:scale-95 bg-gradient-to-r from-green-400 to-blue-500 text-white shadow-lg';
+        tabUsed.className = 'flex-1 py-3 rounded-lg font-bold transition-all active:scale-95 bg-gray-300 text-gray-700';
+      } else {
+        tabAvailable.className = 'flex-1 py-3 rounded-lg font-bold transition-all active:scale-95 bg-gray-300 text-gray-700';
+        tabUsed.className = 'flex-1 py-3 rounded-lg font-bold transition-all active:scale-95 bg-gradient-to-r from-purple-400 to-pink-500 text-white shadow-lg';
+      }
+      
+      updateCouponsDisplay();
+    }
+
     function updateCouponsDisplay() {
       const couponsList = document.getElementById('couponsList');
       const noCouponsMsg = document.getElementById('noCouponsMessage');
       
+      // 탭별 쿠폰 필터링
+      const availableCoupons = gameState.coupons.filter(c => !c.used);
+      const usedCoupons = gameState.coupons.filter(c => c.used);
+      
+      // 카운트 업데이트
+      document.getElementById('availableCount').textContent = availableCoupons.length;
+      document.getElementById('usedCount').textContent = usedCoupons.length;
+      
+      // 현재 탭에 맞는 쿠폰 선택
+      const currentCoupons = gameState.currentCouponTab === 'available' ? availableCoupons : usedCoupons;
+      
+      // 전체 쿠폰이 없을 때
       if (gameState.coupons.length === 0) {
         couponsList.innerHTML = '';
         noCouponsMsg.classList.remove('hidden');
+        document.getElementById('noCouponsText').textContent = '보물상자를 열어 쿠폰을 받아보세요!';
+        return;
+      }
+      
+      // 현재 탭에 쿠폰이 없을 때
+      if (currentCoupons.length === 0) {
+        couponsList.innerHTML = '';
+        noCouponsMsg.classList.remove('hidden');
+        if (gameState.currentCouponTab === 'available') {
+          document.getElementById('noCouponsText').textContent = '사용 가능한 쿠폰이 없습니다.';
+        } else {
+          document.getElementById('noCouponsText').textContent = '사용 완료된 쿠폰이 없습니다.';
+        }
         return;
       }
       
       noCouponsMsg.classList.add('hidden');
       
       // 쿠폰 카드 생성 (최신순)
-      const couponsHTML = gameState.coupons
+      const couponsHTML = currentCoupons
         .slice()
         .reverse()
         .map((coupon, index) => `
