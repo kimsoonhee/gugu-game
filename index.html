@@ -449,7 +449,7 @@
           <div class="bg-white rounded-2xl shadow-2xl p-6 mb-4">
             <div class="text-7xl mb-4 text-center">🎮</div>
             <h3 class="text-xl font-bold text-purple-600 mb-3 text-center">닌텐도 상자를<br>열어보세요!</h3>
-            <p class="text-sm text-gray-600 mb-4 text-center">열쇠 1개로 20~100원 획득</p>
+            <p class="text-sm text-gray-600 mb-4 text-center">열쇠 1개로 60~200원 획득</p>
             <button 
               onclick="openNintendoBox()" 
               id="openNintendoBoxBtn"
@@ -1389,12 +1389,12 @@
 
     // ========== 닌텐도 상자 시스템 ==========
     function getRandomNintendoAmount() {
-      const rand = Math.random() * 120;
-      if (rand < 35) return 40;  // 35%
-      if (rand < 65) return 60;  // 30%
-      if (rand < 85) return 80;  // 20%
-      if (rand < 95) return 100;  // 10%
-      return 100;                 // 5%
+      const rand = Math.random() * 100;
+      if (rand < 35) return 60;  // 35%
+      if (rand < 65) return 80;  // 30%
+      if (rand < 85) return 100;  // 20%
+      if (rand < 95) return 120;  // 10%
+      return 200;                 // 5%
     }
 
     function resetNintendoBox() {
